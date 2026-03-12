@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Medical Note Classifier</title>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Syne:wght@400;600;800&display=swap"
+        rel="stylesheet" />
+    <style>
+        /* ── Reset & Base ── */
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg: #080c0f;
+            --surface: #0d1418;
+            --card: #111920;
+            --border: #1e2e38;
+            --accent: #00d4ff;
+            --accent2: #00ff9d;
+            --danger: #ff4d6d;
+            --text: #e8f4f8;
+            --muted: #5a7a8a;
+            --font-head: 'Syne', sans-serif;
+            --font-mono: 'Share Tech Mono', monospace;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--font-head);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 20px 80px;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* ── Animated background grid ── */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(0, 212, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 212, 255, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ── Glow orbs ── */
+        body::after {
+            content: '';
+            position: fixed;
+            top: -200px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 600px;
+            height: 400px;
+            background: radial-gradient(ellipse, rgba(0, 212, 255, 0.06) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .wrapper {
+            width: 100%;
+            max-width: 780px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ── Header ── */
+        header {
+            text-align: center;
+            margin-bottom: 48px;
+            animation: fadeDown 0.7s ease both;
+        }
+
+        .header-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(0, 212, 255, 0.08);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            border-radius: 100px;
+            padding: 6px 16px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            letter-spacing: 2px;
+            color: var(--accent);
+            text-transform: uppercase;
+            margin-bottom: 20px;
+        }
+
+        .header-badge::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--accent2);
+            box-shadow: 0 0 8px var(--accent2);
+            animation: pulse 2s ease infinite;
+        }
+
+        h1 {
+            font-size: clamp(2rem, 6vw, 3.2rem);
+            font-weight: 800;
+            letter-spacing: -1px;
+            line-height: 1.1;
+            background: linear-gradient(135deg, #ffffff 0%, var(--accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 12px;
+        }
+
+        .subtitle {
+            font-family: var(--font-mono);
+            font-size: 13px;
+            color: var(--muted);
+            letter-spacing: 1px;
+        }
+
+        /* ── Card ── */
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 32px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--accent), transparent);
+            opacity: 0.4;
+        }
+
+        /* ── Section labels ── */
+        .section-label {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: var(--accent);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-label::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+
+        /* ── Textarea ── */
+        textarea {
+            width: 100%;
+            min-height: 160px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text);
+            font-family: var(--font-mono);
+            font-size: 14px;
+            line-height: 1.7;
+            padding: 16px;
+            resize: vertical;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        textarea::placeholder {
+            color: var(--muted);
+        }
+
+        textarea:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1), inset 0 0 20px rgba(0, 212, 255, 0.03);
+        }
+
+        /* ── Button ── */
+        .btn-predict {
+            margin-top: 20px;
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.15), rgba(0, 255, 157, 0.1));
+            border: 1px solid rgba(0, 212, 255, 0.4);
+            border-radius: 10px;
+            color: var(--accent);
+            font-family: var(--font-head);
+            font-size: 15px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.25s ease;
+        }
+
+        .btn-predict::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.25), rgba(0, 255, 157, 0.15));
+            opacity: 0;
+            transition: opacity 0.25s;
+        }
+
+        .btn-predict:hover::before {
+            opacity: 1;
+        }
+
+        .btn-predict:hover {
+            border-color: var(--accent);
+            box-shadow: 0 0 30px rgba(0, 212, 255, 0.2), 0 4px 20px rgba(0, 0, 0, 0.4);
+            transform: translateY(-1px);
+        }
+
+        .btn-predict:active {
+            transform: translateY(0);
+        }
+
+        .btn-predict:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-inner {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        /* ── Spinner ── */
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(0, 212, 255, 0.3);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            display: none;
+        }
+
+        /* ── Result panel ── */
+        #result-panel {
+            margin-top: 28px;
+            display: none;
+            animation: fadeUp 0.4s ease both;
+        }
+
+        .result-main {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-bottom: 24px;
+        }
+
+        .prediction-box {
+            flex: 1;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px 24px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .prediction-box::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, var(--accent2), var(--accent));
+        }
+
+        .pred-label {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            letter-spacing: 3px;
+            color: var(--muted);
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .pred-value {
+            font-size: 1.6rem;
+            font-weight: 800;
+            color: var(--accent2);
+            letter-spacing: -0.5px;
+        }
+
+        .confidence-box {
+            flex: 0 0 140px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px 24px;
+            text-align: center;
+        }
+
+        .conf-label {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            letter-spacing: 3px;
+            color: var(--muted);
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .conf-value {
+            font-size: 2rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* ── Score bars ── */
+        .scores-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .score-row {
+            display: grid;
+            grid-template-columns: 160px 1fr 56px;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .score-name {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            color: var(--muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .score-bar-track {
+            height: 6px;
+            background: var(--surface);
+            border-radius: 100px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+
+        .score-bar-fill {
+            height: 100%;
+            border-radius: 100px;
+            background: linear-gradient(90deg, var(--accent), var(--accent2));
+            transition: width 0.6s cubic-bezier(0.25, 1, 0.5, 1);
+            box-shadow: 0 0 8px rgba(0, 212, 255, 0.4);
+        }
+
+        .score-bar-fill.top {
+            background: linear-gradient(90deg, var(--accent2), #00ffcc);
+        }
+
+        .score-pct {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--muted);
+            text-align: right;
+        }
+
+        /* ── Error ── */
+        .error-msg {
+            background: rgba(255, 77, 109, 0.1);
+            border: 1px solid rgba(255, 77, 109, 0.3);
+            border-radius: 10px;
+            padding: 14px 18px;
+            color: var(--danger);
+            font-family: var(--font-mono);
+            font-size: 13px;
+            display: none;
+            margin-top: 16px;
+        }
+
+        /* ── Example pills ── */
+        .examples-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .example-pill {
+            background: rgba(0, 212, 255, 0.05);
+            border: 1px solid rgba(0, 212, 255, 0.15);
+            border-radius: 100px;
+            padding: 5px 14px;
+            font-size: 11px;
+            font-family: var(--font-mono);
+            color: var(--muted);
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .example-pill:hover {
+            background: rgba(0, 212, 255, 0.12);
+            border-color: rgba(0, 212, 255, 0.4);
+            color: var(--accent);
+        }
+
+        /* ── Footer ── */
+        footer {
+            margin-top: 40px;
+            text-align: center;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--muted);
+            opacity: 0.6;
+            letter-spacing: 1px;
+        }
+
+        /* ── Animations ── */
+        @keyframes fadeDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeUp {
+            from {
+                opacity: 0;
+                transform: translateY(16px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.4;
+            }
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 540px) {
+            .score-row {
+                grid-template-columns: 120px 1fr 48px;
+            }
+
+            .result-main {
+                flex-direction: column;
+            }
+
+            .confidence-box {
+                flex: 1;
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="wrapper">
+
+        <!-- Header -->
+        <header>
+            <div class="header-badge">Bio_ClinicalBERT &middot; Inference Mode</div>
+            <h1>Medical Note Classifier</h1>
+            <p class="subtitle">AI&#8209;Powered Clinical Text Analysis</p>
+        </header>
+
+        <!-- Input card -->
+        <div class="card" style="animation: fadeUp 0.6s 0.1s ease both; opacity:0;">
+            <div class="section-label">Clinical Note Input</div>
+
+            <textarea id="note-input"
+                placeholder="Enter clinical note here&#10;e.g. Patient complains of chest pain radiating to the left arm and shortness of breath."
+                spellcheck="false"></textarea>
+
+            <div class="examples-row">
+                <span class="example-pill" onclick="setExample(this)">Chest pain radiating to left arm</span>
+                <span class="example-pill" onclick="setExample(this)">Persistent cough and wheezing, low O2 sat</span>
+                <span class="example-pill" onclick="setExample(this)">Elevated blood glucose, HbA1c 9.2%</span>
+                <span class="example-pill" onclick="setExample(this)">Seizure onset, MRI ordered</span>
+                <span class="example-pill" onclick="setExample(this)">High fever, positive blood culture</span>
+                <span class="example-pill" onclick="setExample(this)">Annual wellness exam, vitals normal</span>
+            </div>
+
+            <button class="btn-predict" id="predict-btn" onclick="runPrediction()">
+                <span class="btn-inner">
+                    <span class="spinner" id="spinner"></span>
+                    <span id="btn-text">Run Classification</span>
+                </span>
+            </button>
+
+            <div class="error-msg" id="error-msg"></div>
+        </div>
+
+        <!-- Result panel -->
+        <div id="result-panel">
+            <div class="card" style="margin-top:0;">
+                <div class="section-label">Classification Result</div>
+
+                <div class="result-main">
+                    <div class="prediction-box">
+                        <div class="pred-label">Predicted Category</div>
+                        <div class="pred-value" id="pred-category">&mdash;</div>
+                    </div>
+                    <div class="confidence-box">
+                        <div class="conf-label">Confidence</div>
+                        <div class="conf-value" id="pred-confidence">&mdash;</div>
+                    </div>
+                </div>
+
+                <div class="section-label">All Category Scores</div>
+                <div class="scores-grid" id="scores-grid"></div>
+            </div>
+        </div>
+
+        <footer>Medical Note Classifier &middot; No training &middot; Inference only &middot; Bio_ClinicalBERT</footer>
+    </div>
+
+    <script>
+        function setExample(el) {
+            document.getElementById('note-input').value = el.textContent.trim();
+            document.getElementById('note-input').focus();
+        }
+
+        async function runPrediction() {
+            const text = document.getElementById('note-input').value.trim();
+            const errorEl = document.getElementById('error-msg');
+            const resultPanel = document.getElementById('result-panel');
+            const btn = document.getElementById('predict-btn');
+            const spinner = document.getElementById('spinner');
+            const btnText = document.getElementById('btn-text');
+
+            errorEl.style.display = 'none';
+            resultPanel.style.display = 'none';
+
+            if (!text) {
+                errorEl.textContent = 'Please enter a clinical note before running classification.';
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            btn.disabled = true;
+            spinner.style.display = 'block';
+            btnText.textContent = 'Analyzing\u2026';
+
+            try {
+                const res = await fetch('/predict', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text }),
+                });
+
+                if (!res.ok) throw new Error(`Server error: ${res.status}`);
+                const data = await res.json();
+
+                if (data.error) throw new Error(data.error);
+
+                // Populate result
+                document.getElementById('pred-category').textContent = data.prediction;
+                document.getElementById('pred-confidence').textContent =
+                    (data.confidence * 100).toFixed(1) + '%';
+
+                // Sort scores
+                const scores = Object.entries(data.all_scores).sort((a, b) => b[1] - a[1]);
+                const maxScore = scores[0][1];
+                const grid = document.getElementById('scores-grid');
+                grid.innerHTML = '';
+
+                scores.forEach(([label, score]) => {
+                    const isTop = label === data.prediction;
+                    const pct = ((score / maxScore) * 100).toFixed(1);
+                    grid.innerHTML += `
+            <div class="score-row">
+              <span class="score-name" style="${isTop ? 'color:var(--accent2)' : ''}">${label}</span>
+              <div class="score-bar-track">
+                <div class="score-bar-fill ${isTop ? 'top' : ''}" style="width:0%" data-pct="${pct}%"></div>
+              </div>
+              <span class="score-pct" style="${isTop ? 'color:var(--accent2)' : ''}">${(score * 100).toFixed(1)}%</span>
+            </div>`;
+                });
+
+                resultPanel.style.display = 'block';
+                resultPanel.style.animation = 'none';
+                void resultPanel.offsetWidth;
+                resultPanel.style.animation = 'fadeUp 0.4s ease both';
+
+                // Animate bars after paint
+                requestAnimationFrame(() => requestAnimationFrame(() => {
+                    document.querySelectorAll('.score-bar-fill').forEach(el => {
+                        el.style.width = el.dataset.pct;
+                    });
+                }));
+
+            } catch (err) {
+                errorEl.textContent = 'Error: ' + err.message;
+                errorEl.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                spinner.style.display = 'none';
+                btnText.textContent = 'Run Classification';
+            }
+        }
+
+        // Allow Ctrl+Enter to submit
+        document.getElementById('note-input').addEventListener('keydown', e => {
+            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) runPrediction();
+        });
+    </script>
+</body>
+
+</html>
